@@ -1,19 +1,13 @@
 ﻿#if ASYNC
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Dapper;
 
-#if COREFX
-using IDbTransaction = System.Data.Common.DbTransaction;
-using IDbConnection = System.Data.Common.DbConnection;
-using DataException = System.InvalidOperationException;
-#else
-using System.Data;
-#endif
 
 namespace Dapper.Contrib.Extensions
 {
@@ -27,7 +21,7 @@ namespace Dapper.Contrib.Extensions
         /// <typeparam name="T">Interface type to create and populate</typeparam>
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="id">Id of the entity to get, must be marked with [Key] attribute</param>
-        /// <param name="transaction">The transaction to run under, null (the defualt) if none</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Entity of T</returns>
         public static async Task<T> GetAsync<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
@@ -75,7 +69,7 @@ namespace Dapper.Contrib.Extensions
         /// </summary>
         /// <typeparam name="T">Interface or type to create and populate</typeparam>
         /// <param name="connection">Open SqlConnection</param>
-        /// <param name="transaction">The transaction to run under, null (the defualt) if none</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Entity of T</returns>
         public static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
@@ -123,7 +117,7 @@ namespace Dapper.Contrib.Extensions
         /// </summary>
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="entityToInsert">Entity to insert</param>
-        /// <param name="transaction">The transaction to run under, null (the defualt) if none</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <param name="sqlAdapter">The specific ISqlAdapter to use, auto-detected based on connection if null</param>
         /// <returns>Identity of inserted entity</returns>
@@ -135,7 +129,12 @@ namespace Dapper.Contrib.Extensions
                 sqlAdapter = GetFormatter(connection);
 
             var isList = false;
-            if (type.IsArray || type.IsGenericType())
+            if (type.IsArray)
+            {
+                isList = true;
+                type = type.GetElementType();
+            }
+            else if (type.IsGenericType())
             {
                 isList = true;
                 type = type.GetGenericArguments()[0];
@@ -182,7 +181,7 @@ namespace Dapper.Contrib.Extensions
         /// <typeparam name="T">Type to be updated</typeparam>
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="entityToUpdate">Entity to be updated</param>
-        /// <param name="transaction">The transaction to run under, null (the defualt) if none</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
         public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
@@ -195,8 +194,14 @@ namespace Dapper.Contrib.Extensions
 
             var type = typeof(T);
 
-            if (type.IsArray || type.IsGenericType())
+            if (type.IsArray)
+            {
+                type = type.GetElementType();
+            }
+            else if (type.IsGenericType())
+            {
                 type = type.GetGenericArguments()[0];
+            }
 
             var keyProperties = KeyPropertiesCache(type);
             var explicitKeyProperties = ExplicitKeyPropertiesCache(type);
@@ -240,7 +245,7 @@ namespace Dapper.Contrib.Extensions
         /// <typeparam name="T">Type of entity</typeparam>
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="entityToDelete">Entity to delete</param>
-        /// <param name="transaction">The transaction to run under, null (the defualt) if none</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>true if deleted, false if not found</returns>
         public static async Task<bool> DeleteAsync<T>(this IDbConnection connection, T entityToDelete, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
@@ -250,8 +255,14 @@ namespace Dapper.Contrib.Extensions
 
             var type = typeof(T);
 
-            if (type.IsArray || type.IsGenericType())
+            if (type.IsArray)
+            {
+                type = type.GetElementType();
+            }
+            else if (type.IsGenericType())
+            {
                 type = type.GetGenericArguments()[0];
+            }
 
             var keyProperties = KeyPropertiesCache(type);
             var explicitKeyProperties = ExplicitKeyPropertiesCache(type);
@@ -280,7 +291,7 @@ namespace Dapper.Contrib.Extensions
         /// </summary>
         /// <typeparam name="T">Type of entity</typeparam>
         /// <param name="connection">Open SqlConnection</param>
-        /// <param name="transaction">The transaction to run under, null (the defualt) if none</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>true if deleted, false if none found</returns>
         public static async Task<bool> DeleteAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class

@@ -8,10 +8,6 @@ using System.Threading;
 using System.Data.SqlClient;
 using Xunit;
 
-#if COREFX
-using IDbConnection = System.Data.Common.DbConnection;
-#endif
-
 namespace Dapper.Tests
 {
     public partial class TestSuite
@@ -22,6 +18,34 @@ namespace Dapper.Tests
             var query = await connection.QueryAsync<string>("select 'abc' as [Value] union all select @txt", new { txt = "def" });
             var arr = query.ToArray();
             arr.IsSequenceEqualTo(new[] { "abc", "def" });
+        }
+
+        [Fact]
+        public async Task TestBasicStringUsageQueryFirstAsync()
+        {
+            var str = await connection.QueryFirstAsync<string>(new CommandDefinition("select 'abc' as [Value] union all select @txt", new {txt = "def"}));
+            str.IsEqualTo("abc");
+        }
+
+        [Fact]
+        public async Task TestBasicStringUsageQueryFirstOrDefaultAsync()
+        {
+            var str = await connection.QueryFirstOrDefaultAsync<string>(new CommandDefinition("select null as [Value] union all select @txt", new {txt = "def"}));
+            str.IsNull();
+        }
+
+        [Fact]
+        public async Task TestBasicStringUsageQuerySingleAsync()
+        {
+            var str = await connection.QuerySingleAsync<string>(new CommandDefinition("select 'abc' as [Value]"));
+            str.IsEqualTo("abc");
+        }
+
+        [Fact]
+        public async Task TestBasicStringUsageQuerySingleOrDefaultAsync()
+        {
+            var str = await connection.QuerySingleAsync<string>(new CommandDefinition("select null as [Value]"));
+            str.IsNull();
         }
 
         [Fact]
@@ -192,7 +216,7 @@ namespace Dapper.Tests
             }
         }
 
-#if EXTERNALS
+#if !COREFX
         [Fact]
         public async Task ExecuteReaderOpenAsync()
         {
@@ -746,6 +770,17 @@ SET @AddressPersonId = @PersonId", p))
                 reader.GetInt32(1).IsEqualTo(1);
                 reader.Read().IsFalse();
             }
+        }
+
+        [Fact]
+        public async Task Issue563_QueryAsyncShouldThrowException()
+        {
+            try
+            {
+                var data = (await connection.QueryAsync<int>("select 1 union all select 2; RAISERROR('after select', 16, 1);")).ToList();
+                Assert.Fail();
+            }
+            catch (SqlException ex) when (ex.Message == "after select") { }
         }
     }
 }

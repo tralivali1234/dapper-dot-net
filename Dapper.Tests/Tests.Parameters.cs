@@ -9,17 +9,9 @@ using System.Dynamic;
 using System.Linq;
 using Xunit;
 
-#if EXTERNALS
+#if ENTITY_FRAMEWORK
 using System.Data.Entity.Spatial;
 using Microsoft.SqlServer.Types;
-#endif
-
-#if COREFX
-using IDbCommand = System.Data.Common.DbCommand;
-using IDbDataParameter = System.Data.Common.DbParameter;
-using IDbConnection = System.Data.Common.DbConnection;
-using IDbTransaction = System.Data.Common.DbTransaction;
-using IDataReader = System.Data.Common.DbDataReader;
 #endif
 
 namespace Dapper.Tests
@@ -114,7 +106,7 @@ namespace Dapper.Tests
         }
 
 
-#if EXTERNALS
+#if !COREFX
         [Fact]
         public void TestTVPWithAnonymousObject()
         {
@@ -346,7 +338,9 @@ namespace Dapper.Tests
                 ex.Message.Equals("The table type parameter 'ids' must have a valid type name.");
             }
         }
-        
+#endif
+
+#if !COREFX
         [Fact]
         public void SupportInit()
         {
@@ -354,7 +348,9 @@ namespace Dapper.Tests
             obj.Value.Equals("abc");
             obj.Flags.Equals(31);
         }
-        
+#endif
+
+#if ENTITY_FRAMEWORK
         class HazGeo
         {
             public int Id { get; set; }
@@ -444,7 +440,11 @@ namespace Dapper.Tests
             public int Id { get; set; }
             public SqlHierarchyId Path { get; set; }
         }
-        
+
+#endif
+
+#if OLEDB
+
         // see http://stackoverflow.com/q/18847510/23354
         [Fact]
         public void TestOleDbParameters()
@@ -992,5 +992,73 @@ SELECT * FROM @Issue192 WHERE Field IN @µ AND Field_1 IN @µµ",
             var value = dbParams.Get<int>("Field1");
             value.IsEqualTo(1);
         }
+
+        [Fact]
+        public void RunAllStringSplitTestsDisabled()
+        {
+            RunAllStringSplitTests(-1, 1500);
+        }
+        [FactRequiredCompatibilityLevel(FactRequiredCompatibilityLevelAttribute.SqlServer2016)]
+        public void RunAllStringSplitTestsEnabled()
+        {
+            RunAllStringSplitTests(10, 4500);
+        }
+        private void RunAllStringSplitTests(int stringSplit, int max = 150)
+        {
+            int oldVal = SqlMapper.Settings.InListStringSplitCount;
+            try
+            {
+                SqlMapper.Settings.InListStringSplitCount = stringSplit;
+                try { connection.Execute("drop table #splits"); } catch { }
+                int count = connection.QuerySingle<int>("create table #splits (i int not null);"
+                    + string.Concat(Enumerable.Range(-max, max * 3).Select(i => $"insert #splits (i) values ({i});"))
+                    + "select count(1) from #splits");
+                count.IsEqualTo(3 * max);
+
+                for (int i = 0; i < max; Incr(ref i))
+                {
+                    try
+                    {
+                        var vals = Enumerable.Range(1, i);
+                        var list = connection.Query<int>("select i from #splits where i in @vals", new { vals }).AsList();
+                        list.Count.IsEqualTo(i);
+                        list.Sum().IsEqualTo(vals.Sum());
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException($"Error when i={i}: {ex.Message}", ex);
+                    }
+                }
+            }
+            finally
+            {
+                SqlMapper.Settings.InListStringSplitCount = oldVal;
+            }
+        }
+        static void Incr(ref int i)
+        {
+            if (i <= 15) i++;
+            else if (i <= 80) i += 5;
+            else if (i <= 200) i += 10;
+            else if (i <= 1000) i += 50;
+            else i += 100;
+        }
+
+        [Fact]
+        public void Issue601_InternationalParameterNamesWork()
+        {
+            // regular parameter
+            var result = connection.QuerySingle<int>("select @æøå٦", new { æøå٦ = 42 });
+            result.IsEqualTo(42);
+
+#if OLEDB
+            // pseudo-positional
+            using (var connection = ConnectViaOledb())
+            {
+                int value = connection.QuerySingle<int>("select ?æøå٦?", new { æøå٦ = 42 });
+            }
+#endif
+        }
+
     }
 }

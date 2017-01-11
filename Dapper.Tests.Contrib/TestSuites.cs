@@ -6,7 +6,6 @@ using Xunit;
 using Xunit.Sdk;
 #if COREFX
 using Microsoft.Data.Sqlite;
-using IDbConnection = System.Data.Common.DbConnection;
 #else
 using System.Data.SQLite;
 using System.Data.SqlServerCe;
@@ -29,7 +28,7 @@ namespace Dapper.Tests.Contrib
     {
         const string DbName = "tempdb";
         public static string ConnectionString =>
-            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPVEYOR"))
+            IsAppVeyor
                 ? @"Server=(local)\SQL2014;Database=tempdb;User ID=sa;Password=Password12!"
                 : $"Data Source=.;Initial Catalog={DbName};Integrated Security=True";
         public override IDbConnection GetConnection() => new SqlConnection(ConnectionString);
@@ -66,10 +65,10 @@ namespace Dapper.Tests.Contrib
     {
         const string DbName = "DapperContribTests";
 
-        public static string ConnectionString =>
-            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPVEYOR"))
-                ? @"Server=localhost;Uid=root;Pwd=Password12!;"
-                : $"Server=localhost;Uid=root;Pwd=Password12!;";
+        public static string ConnectionString { get; private set; } =
+            IsAppVeyor
+                ? "Server=localhost;Uid=root;Pwd=Password12!;"
+                : "Server=localhost;Uid=test;Pwd=pass;";
 
         public override IDbConnection GetConnection()
         {

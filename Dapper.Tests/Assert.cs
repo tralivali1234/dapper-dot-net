@@ -4,14 +4,14 @@ namespace Dapper.Tests
 {
     public static class Assert
     {
-        public static void IsEqualTo<T>(this T expected, T actual)
+        public static void IsEqualTo<T>(this T actual, T expected)
         {
             Xunit.Assert.Equal(expected, actual);
         }
 
-        public static void IsSequenceEqualTo<T>(this IEnumerable<T> obj, IEnumerable<T> other)
+        public static void IsSequenceEqualTo<T>(this IEnumerable<T> actual, IEnumerable<T> expected)
         {
-            Xunit.Assert.Equal(obj ?? new T[0], other);
+            Xunit.Assert.Equal(expected, actual ?? new T[0]);
         }
         public static void IsMoreThan(this int a, int b)
         {
@@ -23,9 +23,9 @@ namespace Dapper.Tests
             Xunit.Assert.True(a > b, $"{a} should be larger than {b}");
         }
 
-        public static void Fail()
+        public static void Fail(string message = null)
         {
-            Xunit.Assert.True(false, "Expectation failed");
+            Xunit.Assert.True(false, message ?? "Expectation failed");
         }
         public static void IsFalse(this bool b)
         {

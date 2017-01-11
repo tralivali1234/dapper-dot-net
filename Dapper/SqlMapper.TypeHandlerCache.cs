@@ -2,10 +2,6 @@
 using System.ComponentModel;
 using System.Data;
 
-#if COREFX
-using IDbDataParameter = System.Data.Common.DbParameter;
-#endif
-
 namespace Dapper
 {
     partial class SqlMapper
@@ -13,7 +9,7 @@ namespace Dapper
         /// <summary>
         /// Not intended for direct usage
         /// </summary>
-        [Obsolete("Not intended for direct usage", false)]
+        [Obsolete(ObsoleteInternalUsageOnly, false)]
 #if !COREFX
         [Browsable(false)]
 #endif
@@ -23,7 +19,7 @@ namespace Dapper
             /// <summary>
             /// Not intended for direct usage
             /// </summary>
-            [Obsolete("Not intended for direct usage", true)]
+            [Obsolete(ObsoleteInternalUsageOnly, true)]
             public static T Parse(object value)
             {
                 return (T)handler.Parse(typeof(T), value);
@@ -32,7 +28,7 @@ namespace Dapper
             /// <summary>
             /// Not intended for direct usage
             /// </summary>
-            [Obsolete("Not intended for direct usage", true)]
+            [Obsolete(ObsoleteInternalUsageOnly, true)]
             public static void SetValue(IDbDataParameter parameter, object value)
             {
                 handler.SetValue(parameter, value);

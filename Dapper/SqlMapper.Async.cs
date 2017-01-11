@@ -9,13 +9,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-#if COREFX
-using IDbTransaction = System.Data.Common.DbTransaction;
-using IDbConnection = System.Data.Common.DbConnection;
-using IDbCommand = System.Data.Common.DbCommand;
-using IDataReader = System.Data.Common.DbDataReader;
-#endif
-
 namespace Dapper
 {
     public static partial class SqlMapper
@@ -42,9 +35,33 @@ namespace Dapper
         /// Execute a single-row query asynchronously using .NET 4.5 Task.
         /// </summary>
         /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
+        public static Task<dynamic> QueryFirstAsync(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<dynamic>(cnn, Row.First, typeof(DapperRow), command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
         public static Task<dynamic> QueryFirstOrDefaultAsync(this IDbConnection cnn, CommandDefinition command)
         {
-            return QueryFirstOrDefaultAsync<dynamic>(cnn, typeof(DapperRow), command);
+            return QueryRowAsync<dynamic>(cnn, Row.FirstOrDefault, typeof(DapperRow), command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
+        public static Task<dynamic> QuerySingleAsync(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<dynamic>(cnn, Row.Single, typeof(DapperRow), command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        /// <remarks>Note: the row can be accessed via "dynamic", or by casting to an IDictionary&lt;string,object&gt;</remarks>
+        public static Task<dynamic> QuerySingleOrDefaultAsync(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<dynamic>(cnn, Row.SingleOrDefault, typeof(DapperRow), command);
         }
 
         /// <summary>
@@ -58,9 +75,30 @@ namespace Dapper
         /// <summary>
         /// Execute a single-row query asynchronously using .NET 4.5 Task.
         /// </summary>
+        public static Task<T> QueryFirstAsync<T>(this IDbConnection cnn, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+        {
+            return QueryRowAsync<T>(cnn, Row.First, typeof(T), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
         public static Task<T> QueryFirstOrDefaultAsync<T>(this IDbConnection cnn, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
         {
-            return QueryFirstOrDefaultAsync<T>(cnn, typeof(T), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+            return QueryRowAsync<T>(cnn, Row.FirstOrDefault, typeof(T), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<T> QuerySingleAsync<T>(this IDbConnection cnn, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+        {
+            return QueryRowAsync<T>(cnn, Row.Single, typeof(T), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<T> QuerySingleOrDefaultAsync<T>(this IDbConnection cnn, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+        {
+            return QueryRowAsync<T>(cnn, Row.SingleOrDefault, typeof(T), new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
         }
 
         /// <summary>
@@ -75,10 +113,34 @@ namespace Dapper
         /// <summary>
         /// Execute a single-row query asynchronously using .NET 4.5 Task.
         /// </summary>
+        public static Task<object> QueryFirstAsync(this IDbConnection cnn, Type type, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+        {
+            if (type == null) throw new ArgumentNullException(nameof(type));
+            return QueryRowAsync<object>(cnn, Row.First, type, new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
         public static Task<object> QueryFirstOrDefaultAsync(this IDbConnection cnn, Type type, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
         {
             if (type == null) throw new ArgumentNullException(nameof(type));
-            return QueryFirstOrDefaultAsync<object>(cnn, type, new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+            return QueryRowAsync<object>(cnn, Row.FirstOrDefault, type, new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<object> QuerySingleAsync(this IDbConnection cnn, Type type, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+        {
+            if (type == null) throw new ArgumentNullException(nameof(type));
+            return QueryRowAsync<object>(cnn, Row.Single, type, new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<object> QuerySingleOrDefaultAsync(this IDbConnection cnn, Type type, string sql, object param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null)
+        {
+            if (type == null) throw new ArgumentNullException(nameof(type));
+            return QueryRowAsync<object>(cnn, Row.SingleOrDefault, type, new CommandDefinition(sql, param, transaction, commandTimeout, commandType, CommandFlags.None, default(CancellationToken)));
         }
 
         /// <summary>
@@ -99,11 +161,69 @@ namespace Dapper
         /// <summary>
         /// Execute a single-row query asynchronously using .NET 4.5 Task.
         /// </summary>
+        public static Task<object> QueryFirstAsync(this IDbConnection cnn, Type type, CommandDefinition command)
+        {
+            return QueryRowAsync<object>(cnn, Row.First, type, command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<T> QueryFirstAsync<T>(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<T>(cnn, Row.First, typeof(T), command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
         public static Task<object> QueryFirstOrDefaultAsync(this IDbConnection cnn, Type type, CommandDefinition command)
         {
-            return QueryFirstOrDefaultAsync<object>(cnn, type, command);
+            return QueryRowAsync<object>(cnn, Row.FirstOrDefault, type, command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<T> QueryFirstOrDefaultAsync<T>(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<T>(cnn, Row.FirstOrDefault, typeof(T), command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<object> QuerySingleAsync(this IDbConnection cnn, Type type, CommandDefinition command)
+        {
+            return QueryRowAsync<object>(cnn, Row.Single, type, command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<T> QuerySingleAsync<T>(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<T>(cnn, Row.Single, typeof(T), command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<object> QuerySingleOrDefaultAsync(this IDbConnection cnn, Type type, CommandDefinition command)
+        {
+            return QueryRowAsync<object>(cnn, Row.SingleOrDefault, type, command);
+        }
+        /// <summary>
+        /// Execute a single-row query asynchronously using .NET 4.5 Task.
+        /// </summary>
+        public static Task<T> QuerySingleOrDefaultAsync<T>(this IDbConnection cnn, CommandDefinition command)
+        {
+            return QueryRowAsync<T>(cnn, Row.SingleOrDefault, typeof(T), command);
         }
 
+        private static Task<DbDataReader> ExecuteReaderWithFlagsFallbackAsync(DbCommand cmd, bool wasClosed, CommandBehavior behavior, CancellationToken cancellationToken)
+        {
+            var task = cmd.ExecuteReaderAsync(GetBehavior(wasClosed, behavior), cancellationToken);
+            if (task.Status == TaskStatus.Faulted && Settings.DisableCommandBehaviorOptimizations(behavior, task.Exception.InnerException))
+            { // we can retry; this time it will have different flags
+                task = cmd.ExecuteReaderAsync(GetBehavior(wasClosed, behavior), cancellationToken);
+            }
+            return task;
+        }
         private static async Task<IEnumerable<T>> QueryAsync<T>(this IDbConnection cnn, Type effectiveType, CommandDefinition command)
         {
             object param = command.Parameters;
@@ -117,7 +237,7 @@ namespace Dapper
                 try
                 {
                     if (wasClosed) await ((DbConnection)cnn).OpenAsync(cancel).ConfigureAwait(false);
-                    reader = await cmd.ExecuteReaderAsync(GetBehavior(wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult), cancel).ConfigureAwait(false);
+                    reader = await ExecuteReaderWithFlagsFallbackAsync(cmd, wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult, cancel).ConfigureAwait(false);
 
                     var tuple = info.Deserializer;
                     int hash = GetColumnHash(reader);
@@ -166,7 +286,7 @@ namespace Dapper
                 }
             }
         }
-        private static async Task<T> QueryFirstOrDefaultAsync<T>(this IDbConnection cnn, Type effectiveType, CommandDefinition command)
+        private static async Task<T> QueryRowAsync<T>(this IDbConnection cnn, Row row, Type effectiveType, CommandDefinition command)
         {
             object param = command.Parameters;
             var identity = new Identity(command.CommandText, command.CommandType, cnn, effectiveType, param?.GetType(), null);
@@ -179,10 +299,12 @@ namespace Dapper
                 try
                 {
                     if (wasClosed) await ((DbConnection)cnn).OpenAsync(cancel).ConfigureAwait(false);
-                    reader = await cmd.ExecuteReaderAsync(GetBehavior(wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult  | CommandBehavior.SingleRow), cancel).ConfigureAwait(false);
+                    reader = await ExecuteReaderWithFlagsFallbackAsync(cmd, wasClosed, (row & Row.Single) != 0
+                    ? CommandBehavior.SequentialAccess | CommandBehavior.SingleResult // need to allow multiple rows, to check fail condition
+                    : CommandBehavior.SequentialAccess | CommandBehavior.SingleResult | CommandBehavior.SingleRow, cancel).ConfigureAwait(false);
 
                     T result = default(T);
-                    if(await reader.ReadAsync(cancel).ConfigureAwait(false))
+                    if (await reader.ReadAsync(cancel).ConfigureAwait(false) && reader.FieldCount != 0)
                     {
                         var tuple = info.Deserializer;
                         int hash = GetColumnHash(reader);
@@ -204,7 +326,12 @@ namespace Dapper
                             var convertToType = Nullable.GetUnderlyingType(effectiveType) ?? effectiveType;
                             result = (T)Convert.ChangeType(val, convertToType, CultureInfo.InvariantCulture);
                         }
+                        if ((row & Row.Single) != 0 && await reader.ReadAsync(cancel).ConfigureAwait(false)) ThrowMultipleRows(row);
                         while (await reader.ReadAsync(cancel).ConfigureAwait(false)) { }
+                    }
+                    else if ((row & Row.FirstOrDefault) == 0) // demanding a row, and don't have one
+                    {
+                        ThrowZeroRows(row);
                     }
                     while (await reader.NextResultAsync(cancel).ConfigureAwait(false)) { }
                     return result;
@@ -547,7 +674,7 @@ namespace Dapper
             {
                 if (wasClosed) await ((DbConnection)cnn).OpenAsync(command.CancellationToken).ConfigureAwait(false);
                 using (var cmd = (DbCommand)command.SetupCommand(cnn, info.ParamReader))
-                using (var reader = await cmd.ExecuteReaderAsync(GetBehavior(wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult), command.CancellationToken).ConfigureAwait(false))
+                using (var reader = await ExecuteReaderWithFlagsFallbackAsync(cmd, wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult, command.CancellationToken).ConfigureAwait(false))
                 {
                     if (!command.Buffered) wasClosed = false; // handing back open reader; rely on command-behavior
                     var results = MultiMapImpl<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(null, CommandDefinition.ForCallback(command.Parameters), map, splitOn, reader, identity, true);
@@ -594,7 +721,7 @@ namespace Dapper
             try {
                 if (wasClosed) await ((DbConnection)cnn).OpenAsync().ConfigureAwait(false);
                 using (var cmd = (DbCommand)command.SetupCommand(cnn, info.ParamReader))
-                using (var reader = await cmd.ExecuteReaderAsync(GetBehavior(wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult), command.CancellationToken).ConfigureAwait(false)) {
+                using (var reader = await ExecuteReaderWithFlagsFallbackAsync(cmd, wasClosed, CommandBehavior.SequentialAccess | CommandBehavior.SingleResult, command.CancellationToken).ConfigureAwait(false)) {
                     var results = MultiMapImpl<TReturn>(null, default(CommandDefinition), types, map, splitOn, reader, identity, true);
                     return command.Buffered ? results.ToList() : results;
                 }
@@ -644,7 +771,7 @@ namespace Dapper
             {
                 if (wasClosed) await ((DbConnection)cnn).OpenAsync(command.CancellationToken).ConfigureAwait(false);
                 cmd = (DbCommand)command.SetupCommand(cnn, info.ParamReader);
-                reader = await cmd.ExecuteReaderAsync(GetBehavior(wasClosed, CommandBehavior.SequentialAccess), command.CancellationToken).ConfigureAwait(false);
+                reader = await ExecuteReaderWithFlagsFallbackAsync(cmd, wasClosed, CommandBehavior.SequentialAccess, command.CancellationToken).ConfigureAwait(false);
 
                 var result = new GridReader(cmd, reader, identity, command.Parameters as DynamicParameters, command.AddToCache, command.CancellationToken);
                 wasClosed = false; // *if* the connection was closed and we got this far, then we now have a reader
@@ -677,7 +804,7 @@ namespace Dapper
         /// <returns>An <see cref="IDataReader"/> that can be used to iterate over the results of the SQL query.</returns>
         /// <remarks>
         /// This is typically used when the results of a query are not processed by Dapper, for example, used to fill a <see cref="DataTable"/>
-        /// or <see cref="DataSet"/>.
+        /// or <see cref="T:DataSet"/>.
         /// </remarks>
         /// <example>
         /// <code>
@@ -704,7 +831,7 @@ namespace Dapper
         /// <returns>An <see cref="IDataReader"/> that can be used to iterate over the results of the SQL query.</returns>
         /// <remarks>
         /// This is typically used when the results of a query are not processed by Dapper, for example, used to fill a <see cref="DataTable"/>
-        /// or <see cref="DataSet"/>.
+        /// or <see cref="T:DataSet"/>.
         /// </remarks>
         public static Task<IDataReader> ExecuteReaderAsync(this IDbConnection cnn, CommandDefinition command)
         {
@@ -721,7 +848,7 @@ namespace Dapper
             {
                 cmd = (DbCommand)command.SetupCommand(cnn, paramReader);
                 if (wasClosed) await ((DbConnection)cnn).OpenAsync(command.CancellationToken).ConfigureAwait(false);
-                var reader = await cmd.ExecuteReaderAsync(GetBehavior(wasClosed, CommandBehavior.Default), command.CancellationToken).ConfigureAwait(false);
+                var reader = await ExecuteReaderWithFlagsFallbackAsync(cmd, wasClosed, CommandBehavior.Default, command.CancellationToken).ConfigureAwait(false);
                 wasClosed = false;
                 return reader;
             }

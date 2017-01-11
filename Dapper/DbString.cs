@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Data;
 
-#if COREFX
-using IDbCommand = System.Data.Common.DbCommand;
-#endif
-
 namespace Dapper
 {
     /// <summary>
@@ -61,7 +57,9 @@ namespace Dapper
             }
             var param = command.CreateParameter();
             param.ParameterName = name;
+#pragma warning disable 0618
             param.Value = SqlMapper.SanitizeParameterValue(Value);
+#pragma warning restore 0618
             if (Length == -1 && Value != null && Value.Length <= DefaultLength)
             {
                 param.Size = DefaultLength;

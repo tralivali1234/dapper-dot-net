@@ -4,17 +4,15 @@ using System.Data;
 using System.Linq;
 
 using Dapper.Contrib.Extensions;
-using Xunit;
 
-#if COREFX
-using System.Reflection;
-using IDbConnection = System.Data.Common.DbConnection;
-#else
+#if !COREFX
 using System.Data.SqlServerCe;
 using System.Transactions;
 #endif
 #if XUNIT2
 using FactAttribute = Dapper.Tests.Contrib.SkippableFactAttribute;
+#else
+using Xunit;
 #endif
 
 namespace Dapper.Tests.Contrib
@@ -92,6 +90,8 @@ namespace Dapper.Tests.Contrib
 
     public abstract partial class TestSuite
     {
+        protected static readonly bool IsAppVeyor = Environment.GetEnvironmentVariable("Appveyor")?.ToUpperInvariant() == "TRUE";
+
         public abstract IDbConnection GetConnection();
 
         private IDbConnection GetOpenConnection()
@@ -99,6 +99,35 @@ namespace Dapper.Tests.Contrib
             var connection = GetConnection();
             connection.Open();
             return connection;
+        }
+
+        [Fact]
+        public void Issue418()
+        {
+            using (var connection = GetOpenConnection())
+            {
+                //update first (will fail) then insert
+                //added for bug #418
+                var updateObject = new ObjectX
+                {
+                    ObjectXId = Guid.NewGuid().ToString(),
+                    Name = "Someone"
+                };
+                var updates = connection.Update(updateObject);
+                updates.IsFalse();
+
+                connection.DeleteAll<ObjectX>();
+
+                var objectXId = Guid.NewGuid().ToString();
+                var insertObject = new ObjectX
+                {
+                    ObjectXId = objectXId,
+                    Name = "Someone else"
+                };
+                connection.Insert(insertObject);
+                var list = connection.GetAll<ObjectX>();
+                list.Count().IsEqualTo(1);
+            }
         }
 
         /// <summary>
@@ -111,9 +140,9 @@ namespace Dapper.Tests.Contrib
             {
                 var guid = Guid.NewGuid().ToString();
                 var o1 = new ObjectX { ObjectXId = guid, Name = "Foo" };
-                var originalxCount = connection.Query<int>("Select Count(*) From objectx").First();
+                var originalxCount = connection.Query<int>("Select Count(*) From ObjectX").First();
                 connection.Insert(o1);
-                var list1 = connection.Query<ObjectX>("select * from objectx").ToList();
+                var list1 = connection.Query<ObjectX>("select * from ObjectX").ToList();
                 list1.Count.IsEqualTo(originalxCount + 1);
                 o1 = connection.Get<ObjectX>(guid);
                 o1.ObjectXId.IsEqualTo(guid);
@@ -127,9 +156,9 @@ namespace Dapper.Tests.Contrib
 
                 const int id = 42;
                 var o2 = new ObjectY { ObjectYId = id, Name = "Foo" };
-                var originalyCount = connection.Query<int>("Select Count(*) From objecty").First();
+                var originalyCount = connection.Query<int>("Select Count(*) From ObjectY").First();
                 connection.Insert(o2);
-                var list2 = connection.Query<ObjectY>("select * from objecty").ToList();
+                var list2 = connection.Query<ObjectY>("select * from ObjectY").ToList();
                 list2.Count.IsEqualTo(originalyCount + 1);
                 o2 = connection.Get<ObjectY>(id);
                 o2.ObjectYId.IsEqualTo(id);
@@ -152,8 +181,9 @@ namespace Dapper.Tests.Contrib
                 var o1 = new ObjectX { ObjectXId = guid, Name = "Foo" };
                 connection.Insert(o1);
 
-                var objectXs = connection.GetAll<ObjectX>();
-                objectXs.Count().IsEqualTo(1);
+                var objectXs = connection.GetAll<ObjectX>().ToList();
+                objectXs.Count.IsMoreThan(0);
+                objectXs.Count(x => x.ObjectXId== guid).IsEqualTo(1);
             }
         }
 
@@ -200,7 +230,7 @@ namespace Dapper.Tests.Contrib
             {
                 connection.Insert(new Stuff { Name = "First item" });
                 connection.Insert(new Stuff { Name = "Second item", Created = DateTime.Now });
-                var stuff = connection.Query<Stuff>("select * from stuff").ToList();
+                var stuff = connection.Query<Stuff>("select * from Stuff").ToList();
                 stuff.First().Created.IsNull();
                 stuff.Last().Created.IsNotNull();
 
@@ -250,7 +280,19 @@ namespace Dapper.Tests.Contrib
         }
 
         [Fact]
+        public void InsertArray()
+        {
+            InsertHelper(src => src.ToArray());
+        }
+
+        [Fact]
         public void InsertList()
+        {
+            InsertHelper(src => src.ToList());
+        }
+
+        private void InsertHelper<T>(Func<IEnumerable<User>, T> helper)
+            where T : class
         {
             const int numberOfEntities = 10;
 
@@ -262,42 +304,27 @@ namespace Dapper.Tests.Contrib
             {
                 connection.DeleteAll<User>();
 
-                var total = connection.Insert(users);
+                var total = connection.Insert(helper(users));
                 total.IsEqualTo(numberOfEntities);
-                users = connection.Query<User>("select * from users").ToList();
+                users = connection.Query<User>("select * from Users").ToList();
                 users.Count.IsEqualTo(numberOfEntities);
             }
+        }
+
+        [Fact]
+        public void UpdateArray()
+        {
+            UpdateHelper(src => src.ToArray());
         }
 
         [Fact]
         public void UpdateList()
         {
-            const int numberOfEntities = 10;
-
-            var users = new List<User>();
-            for (var i = 0; i < numberOfEntities; i++)
-                users.Add(new User { Name = "User " + i, Age = i });
-
-            using (var connection = GetOpenConnection())
-            {
-                connection.DeleteAll<User>();
-
-                var total = connection.Insert(users);
-                total.IsEqualTo(numberOfEntities);
-                users = connection.Query<User>("select * from users").ToList();
-                users.Count.IsEqualTo(numberOfEntities);
-                foreach (var user in users)
-                {
-                    user.Name = user.Name + " updated";
-                }
-                connection.Update(users);
-                var name = connection.Query<User>("select * from users").First().Name;
-                name.Contains("updated").IsTrue();
-            }
+            UpdateHelper(src => src.ToList());
         }
 
-        [Fact]
-        public void DeleteList()
+        private void UpdateHelper<T>(Func<IEnumerable<User>, T> helper)
+            where T : class
         {
             const int numberOfEntities = 10;
 
@@ -309,17 +336,55 @@ namespace Dapper.Tests.Contrib
             {
                 connection.DeleteAll<User>();
 
-                var total = connection.Insert(users);
+                var total = connection.Insert(helper(users));
                 total.IsEqualTo(numberOfEntities);
-                users = connection.Query<User>("select * from users").ToList();
+                users = connection.Query<User>("select * from Users").ToList();
+                users.Count.IsEqualTo(numberOfEntities);
+                foreach (var user in users)
+                {
+                    user.Name = user.Name + " updated";
+                }
+                connection.Update(helper(users));
+                var name = connection.Query<User>("select * from Users").First().Name;
+                name.Contains("updated").IsTrue();
+            }
+        }
+
+        [Fact]
+        public void DeleteArray()
+        {
+            DeleteHelper(src => src.ToArray());
+        }
+
+        [Fact]
+        public void DeleteList()
+        {
+            DeleteHelper(src => src.ToList());
+        }
+
+        private void DeleteHelper<T>(Func<IEnumerable<User>, T> helper)
+            where T : class
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<User>();
+
+                var total = connection.Insert(helper(users));
+                total.IsEqualTo(numberOfEntities);
+                users = connection.Query<User>("select * from Users").ToList();
                 users.Count.IsEqualTo(numberOfEntities);
 
                 var usersToDelete = users.Take(10).ToList();
-                connection.Delete(usersToDelete);
-                users = connection.Query<User>("select * from users").ToList();
+                connection.Delete(helper(usersToDelete));
+                users = connection.Query<User>("select * from Users").ToList();
                 users.Count.IsEqualTo(numberOfEntities - 10);
             }
-
         }
 
         [Fact]

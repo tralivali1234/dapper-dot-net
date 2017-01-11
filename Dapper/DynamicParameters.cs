@@ -7,8 +7,6 @@ using System.Reflection;
 using System.Reflection.Emit;
 
 #if COREFX
-using IDbDataParameter = System.Data.Common.DbParameter;
-using IDbCommand = System.Data.Common.DbCommand;
 using ApplicationException = System.InvalidOperationException;
 #endif
 
@@ -233,7 +231,12 @@ namespace Dapper
                 var isCustomQueryParameter = val is SqlMapper.ICustomQueryParameter;
 
                 SqlMapper.ITypeHandler handler = null;
-                if (dbType == null && val != null && !isCustomQueryParameter) dbType = SqlMapper.LookupDbType(val.GetType(), name, true, out handler);
+                if (dbType == null && val != null && !isCustomQueryParameter)
+                {
+#pragma warning disable 618
+                    dbType = SqlMapper.LookupDbType(val.GetType(), name, true, out handler);
+#pragma warning disable 618
+                }
                 if (isCustomQueryParameter)
                 {
                     ((SqlMapper.ICustomQueryParameter)val).AddParameter(command, name);
@@ -262,7 +265,9 @@ namespace Dapper
                     p.Direction = param.ParameterDirection;
                     if (handler == null)
                     {
+#pragma warning disable 0618
                         p.Value = SqlMapper.SanitizeParameterValue(val);
+#pragma warning restore 0618
                         if (dbType != null && p.DbType != dbType)
                         {
                             p.DbType = dbType.Value;
@@ -398,7 +403,7 @@ namespace Dapper
             if (setter != null) goto MAKECALLBACK;
 
             // Come on let's build a method, let's build it, let's build it now!
-            var dm = new DynamicMethod($"ExpressionParam{Guid.NewGuid()}", null, new[] { typeof(object), GetType() }, true);
+            var dm = new DynamicMethod("ExpressionParam" + Guid.NewGuid().ToString(), null, new[] { typeof(object), GetType() }, true);
             var il = dm.GetILGenerator();
 
             il.Emit(OpCodes.Ldarg_0); // [object]
@@ -468,7 +473,11 @@ namespace Dapper
                 else
                 {
                     SqlMapper.ITypeHandler handler;
-                    dbType = (!dbType.HasValue) ? SqlMapper.LookupDbType(targetMemberType, targetMemberType?.Name, true, out handler) : dbType;
+                    dbType = (!dbType.HasValue)
+#pragma warning disable 618
+                    ? SqlMapper.LookupDbType(targetMemberType, targetMemberType?.Name, true, out handler)
+#pragma warning restore 618
+                    : dbType;
 
                     // CameFromTemplate property would not apply here because this new param
                     // Still needs to be added to the command
