@@ -4,7 +4,7 @@ Dapper - a simple object mapper for .Net
 Release Notes
 -------------
 
-[link](http://stackexchange.github.io/dapper-dot-net/)
+[Located at stackexchange.github.io/Dapper](https://stackexchange.github.io/Dapper/)
 
 
 Features
@@ -15,8 +15,6 @@ It provides 3 helpers:
 
 Execute a query and map the results to a strongly typed List
 ------------------------------------------------------------
-
-Note: all extension methods assume the connection is already open, they will fail if the connection is closed.
 
 ```csharp
 public static IEnumerable<T> Query<T>(this IDbConnection cnn, string sql, object param = null, SqlTransaction transaction = null, bool buffered = true)
@@ -242,7 +240,7 @@ new {A = 1, B = "b"} // A will be mapped to the param @A, B to the param @B
 
 List Support
 ------------
-Dapper allow you to pass in IEnumerable<int> and will automatically parameterize your query.
+Dapper allows you to pass in IEnumerable<int> and will automatically parameterize your query.
 
 For example:
 
@@ -373,6 +371,50 @@ Query<Thing>("select * from Thing where Name = @Name", new {Name = new DbString 
 ```
 
 On SQL Server it is crucial to use the unicode when querying unicode and ansi when querying non unicode.
+
+Type Switching Per Row
+---------------------
+
+Usually you'll want to treat all rows from a given table as the same data type. However, there are some circumstances where it's useful to be able to parse different rows as different data types. This is where `IDataReader.GetRowParser` comes in handy.
+
+Imagine you have a database table named "Shapes" with the columns: `Id`, `Type`, and `Data`, and you want to parse its rows into `Circle`, `Square`, or `Triangle` objects based on the value of the Type column.
+
+```csharp
+var shapes = new List<IShape>();
+using (var reader = connection.ExecuteReader("select * from Shapes"))
+{
+    // Generate a row parser for each type you expect.
+    // The generic type <IShape> is what the parser will return.
+    // The argument (typeof(*)) is the concrete type to parse.
+    var circleParser = reader.GetRowParser<IShape>(typeof(Circle));
+    var squareParser = reader.GetRowParser<IShape>(typeof(Square));
+    var triangleParser = reader.GetRowParser<IShape>(typeof(Triangle));
+  	
+  	var typeColumnIndex = reader.GetOrdinal("Type");
+  	
+  	while (reader.Read())
+    {
+        IShape shape;
+        var type = (ShapeType)reader.GetInt32(typeColumnIndex);
+        switch (type)
+        {
+          	case ShapeType.Circle:
+            	shape = circleParser(reader);
+            	break;
+            case ShapeType.Square:
+            	shape = squareParser(reader);
+            	break;
+          	case ShapeType.Triangle:
+            	shape = triangleParser(reader);
+            	break;
+          	default:
+            	throw new NotImplementedException();
+        }
+      
+      	shapes.Add(shape);
+    }
+}
+```
 
 Limitations and caveats
 ---------------------
